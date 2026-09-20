@@ -87,7 +87,7 @@ func TestHTTPHandler_BearerRequired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST without token: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("POST without token status = %d, want 401", resp.StatusCode)
 	}
@@ -132,7 +132,7 @@ func TestHTTPHandler_HealthzUnauthenticated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /healthz: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /healthz status = %d, want 200", resp.StatusCode)
 	}
@@ -148,7 +148,7 @@ func TestHTTPHandler_HealthzUnauthenticated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /mcp without token: %v", err)
 	}
-	defer mcpResp.Body.Close()
+	defer func() { _ = mcpResp.Body.Close() }()
 	if mcpResp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("POST /mcp without token status = %d, want 401", mcpResp.StatusCode)
 	}
@@ -162,7 +162,7 @@ func TestHTTPHandler_RootIsNotMCP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("GET / status = %d, want 404", resp.StatusCode)
 	}
@@ -182,7 +182,7 @@ func TestHTTPHandler_WrongBearerRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("wrong bearer status = %d, want 401", resp.StatusCode)
 	}

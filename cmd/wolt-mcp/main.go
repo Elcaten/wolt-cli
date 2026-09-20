@@ -103,12 +103,16 @@ func main() {
 	}
 
 	logger.Info("wolt-mcp starting", "version", version, "config", store.Path(), "transport", "http", "listen", opt.listen)
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	if err := runHTTP(ctx, logger, srv, opt); err != nil {
+	if err := serveHTTP(logger, srv, opt); err != nil {
 		logger.Error("wolt-mcp exited with error", "err", err)
 		os.Exit(1)
 	}
+}
+
+func serveHTTP(logger *slog.Logger, srv *mcp.Server, opt options) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return runHTTP(ctx, logger, srv, opt)
 }
 
 func printHelp() {
