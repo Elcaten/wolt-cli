@@ -84,6 +84,56 @@ shape. If your client needs an absolute path, use `command -v wolt-mcp` on
 macOS/Linux, `Get-Command wolt-mcp` in PowerShell, or `where.exe wolt-mcp` in
 Command Prompt. Windows source builds normally use `wolt-mcp.exe`.
 
+## HTTP(S) transport
+
+Stdio is the default and still the right choice for desktop hosts that spawn a
+subprocess. For clients that speak [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http), start a listener instead:
+
+```bash
+wolt-mcp --listen 127.0.0.1:8080
+```
+
+The MCP endpoint is `/mcp`:
+
+```json
+{
+  "mcpServers": {
+    "wolt": { "url": "http://127.0.0.1:8080/mcp" }
+  }
+}
+```
+
+`--listen 8080` (port only) binds `127.0.0.1:8080`. Binding a non-loopback
+address (`:8080`, `0.0.0.0:8080`, a LAN IP) requires a bearer token, because
+HTTP exposes the same Wolt login session as the CLI:
+
+```bash
+wolt-mcp --listen 0.0.0.0:8080 --token "$WOLT_MCP_TOKEN"
+```
+
+Clients that support extra headers send `Authorization: Bearer <token>`:
+
+```json
+{
+  "mcpServers": {
+    "wolt": {
+      "url": "http://127.0.0.1:8080/mcp",
+      "headers": { "Authorization": "Bearer ${WOLT_MCP_TOKEN}" }
+    }
+  }
+}
+```
+
+HTTPS uses the same Streamable HTTP handler with TLS files:
+
+```bash
+wolt-mcp --listen 127.0.0.1:8443 --tls-cert cert.pem --tls-key key.pem
+```
+
+Equivalent environment variables: `WOLT_MCP_LISTEN`, `WOLT_MCP_TOKEN`,
+`WOLT_MCP_TLS_CERT`, `WOLT_MCP_TLS_KEY`. Stdio and HTTP are mutually exclusive
+— one process serves one transport.
+
 ## Authentication
 
 `wolt-mcp` shares `~/.wolt/.wolt-config.json` (or `$WOLT_CONFIG_PATH`) with the
@@ -467,10 +517,11 @@ or when the client itself does not reconnect to a failed process.
 
 ### Stdout pollution
 
-`wolt-mcp` deliberately routes every log line to stderr, because stdout is the
-JSON-RPC transport. If a future change adds a stray `fmt.Println(...)`, framing
-breaks and the client disconnects. The `test/e2e/mcp_subprocess_test.go` test
-guards against this — keep it passing.
+In stdio mode, `wolt-mcp` deliberately routes every log line to stderr, because
+stdout is the JSON-RPC transport. If a future change adds a stray
+`fmt.Println(...)`, framing breaks and the client disconnects. The
+`test/e2e/mcp_subprocess_test.go` test guards against this — keep it passing.
+HTTP mode still logs to stderr so the two transports stay consistent.
 
 ### Rate limits
 
@@ -491,8 +542,11 @@ higher on slow networks:
 
 ## Implementation notes
 
-- Built on `github.com/modelcontextprotocol/go-sdk` v1.6.1 (official MCP Go SDK).
-- Stdio transport only in v1 (covers every desktop client).
+- Built on `github.com/modelcontextprotocol/go-sdk` v1.8.0 (official MCP Go SDK).
+- Stdio transport by default (`mcp.StdioTransport`). `--listen` serves the
+  SDK's Streamable HTTP handler (`mcp.NewStreamableHTTPHandler`) at `/mcp`;
+  `--tls-cert`/`--tls-key` wrap the same handler with `ListenAndServeTLS`.
+  Legacy SSE is not implemented.
 - The server is in-process — `cmd/wolt-mcp/main.go` wires the shared gateway and
   service packages into MCP-specific typed handlers in `internal/mcpserver/`.
 - Source: [`cmd/wolt-mcp/`](https://github.com/mekedron/wolt-cli/tree/main/cmd/wolt-mcp) and [`internal/mcpserver/`](https://github.com/mekedron/wolt-cli/tree/main/internal/mcpserver).

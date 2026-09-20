@@ -289,8 +289,15 @@ typed, schema-described tool surface for Wolt instead of having to shell out.
 ```
 
 Auth is shared with the CLI — log in once via `wolt login` and `wolt-mcp`
-inherits the same session. Full tool catalog and per-client setup steps:
-[`docs/mcp.md`](docs/mcp.md).
+inherits the same session. Default transport is stdio. To serve Streamable
+HTTP(S) instead:
+
+```bash
+wolt-mcp --listen 127.0.0.1:8080
+```
+
+Then point the client at `http://127.0.0.1:8080/mcp`. Full tool catalog,
+HTTP/TLS flags, and per-client setup: [`docs/mcp.md`](docs/mcp.md).
 
 ## Documentation
 

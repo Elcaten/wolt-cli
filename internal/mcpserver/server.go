@@ -15,7 +15,8 @@ const ServerName = "wolt"
 
 // NewServer constructs an MCP server with every wolt-cli tool registered.
 // The returned server has not yet been connected to a transport — call
-// server.Run(ctx, &mcp.StdioTransport{}) in main.
+// server.Run(ctx, &mcp.StdioTransport{}) for stdio, or wrap it with
+// mcp.NewStreamableHTTPHandler for Streamable HTTP.
 func NewServer(deps Deps) *mcp.Server {
 	version := strings.TrimSpace(deps.Version)
 	if version == "" {
