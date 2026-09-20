@@ -35,7 +35,23 @@ func newMCPHTTPHandler(srv *mcp.Server, token string, logger *slog.Logger) http.
 	}
 	mux := http.NewServeMux()
 	mux.Handle(mcpHTTPPath, handler)
+	mux.HandleFunc(mcpHealthPath, healthz)
 	return mux
+}
+
+func healthz(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodHead {
+		return
+	}
+	_, _ = w.Write([]byte("ok\n"))
 }
 
 func runHTTP(ctx context.Context, logger *slog.Logger, srv *mcp.Server, opt options) error {

@@ -17,7 +17,8 @@ const (
 	tlsCertEnv = "WOLT_MCP_TLS_CERT"
 	tlsKeyEnv  = "WOLT_MCP_TLS_KEY"
 
-	mcpHTTPPath = "/mcp"
+	mcpHTTPPath   = "/mcp"
+	mcpHealthPath = "/healthz"
 )
 
 // options is the parsed wolt-mcp command line. An empty Listen means stdio.

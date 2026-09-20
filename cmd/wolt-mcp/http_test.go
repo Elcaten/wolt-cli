@@ -123,6 +123,37 @@ func TestHTTPHandler_BearerRequired(t *testing.T) {
 	}
 }
 
+func TestHTTPHandler_HealthzUnauthenticated(t *testing.T) {
+	const token = "secret"
+	httpServer := httptest.NewServer(newMCPHTTPHandler(testMCPServer(), token, discardLogger()))
+	t.Cleanup(httpServer.Close)
+
+	resp, err := http.Get(httpServer.URL + mcpHealthPath)
+	if err != nil {
+		t.Fatalf("GET /healthz: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /healthz status = %d, want 200", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read /healthz: %v", err)
+	}
+	if got := string(body); got != "ok\n" {
+		t.Fatalf("GET /healthz body = %q, want %q", got, "ok\n")
+	}
+
+	mcpResp, err := http.Post(httpServer.URL+mcpHTTPPath, "application/json", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+	if err != nil {
+		t.Fatalf("POST /mcp without token: %v", err)
+	}
+	defer mcpResp.Body.Close()
+	if mcpResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("POST /mcp without token status = %d, want 401", mcpResp.StatusCode)
+	}
+}
+
 func TestHTTPHandler_RootIsNotMCP(t *testing.T) {
 	httpServer := httptest.NewServer(newMCPHTTPHandler(testMCPServer(), "", discardLogger()))
 	t.Cleanup(httpServer.Close)

@@ -70,3 +70,47 @@ jobs:
 
       - name: Race detector
         run: go test -race ./...
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve build version
+        run: echo "BUILD_VERSION=$(git describe --tags --always --dirty)" >> "$GITHUB_ENV"
+
+      - name: Build image
+        run: docker build --build-arg VERSION="${BUILD_VERSION}" -t wolt-mcp:ci .
+
+      - name: Verify embedded version
+        run: |
+          actual="$(docker run --rm wolt-mcp:ci --version | tr -d '\r\n')"
+          if [ "${actual}" != "${BUILD_VERSION}" ]; then
+            echo "wolt-mcp --version mismatch: expected '${BUILD_VERSION}', got '${actual}'"
+            exit 1
+          fi
+
+      - name: Healthz smoke
+        run: |
+          set -euo pipefail
+          docker run -d --name wolt-mcp-ci \
+            -e WOLT_MCP_TOKEN=ci-token \
+            -e WOLT_MCP_LISTEN=0.0.0.0:8080 \
+            -p 8080:8080 \
+            wolt-mcp:ci
+          trap 'docker rm -f wolt-mcp-ci >/dev/null 2>&1 || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/healthz; then
+              exit 0
+            fi
+            sleep 0.2
+          done
+          echo "healthz did not become ready"
+          docker logs wolt-mcp-ci
+          exit 1

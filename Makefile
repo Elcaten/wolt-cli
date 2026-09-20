@@ -2,7 +2,7 @@ APP_NAME := wolt
 MCP_NAME := wolt-mcp
 VERSION ?= $(shell git describe --tags --always --dirty)
 
-.PHONY: build mcp all run test race lint cover clean install-hooks
+.PHONY: build mcp all run test race lint cover clean install-hooks docker docker-compose
 
 install-hooks:
 	./scripts/install-git-hooks.sh
@@ -33,3 +33,9 @@ cover:
 
 clean:
 	rm -rf bin coverage.out
+
+docker:
+	docker build --build-arg VERSION=$(VERSION) -t $(MCP_NAME):local .
+
+docker-compose:
+	VERSION=$(VERSION) docker compose up --build -d

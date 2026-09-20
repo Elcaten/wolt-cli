@@ -9,6 +9,7 @@ coverage.out
 
 # Local tooling
 .DS_Store
+.env
 
 # Local scratch for captured API responses / browser validation (may hold tokens)
 .validation/

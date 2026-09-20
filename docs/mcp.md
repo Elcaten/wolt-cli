@@ -134,6 +134,60 @@ Equivalent environment variables: `WOLT_MCP_LISTEN`, `WOLT_MCP_TOKEN`,
 `WOLT_MCP_TLS_CERT`, `WOLT_MCP_TLS_KEY`. Stdio and HTTP are mutually exclusive
 — one process serves one transport.
 
+HTTP also serves unauthenticated `GET /healthz` (`200 ok`) for probes. `/mcp`
+still requires the bearer token when one is configured.
+
+## Docker
+
+The image entrypoint is `wolt-mcp`. With no listen address it speaks stdio
+(`docker run -i`). Compose binds Streamable HTTP on `0.0.0.0:8080`, which
+requires a bearer token.
+
+Log in on the host first (`wolt login`). Browser login does not run inside the
+container. Mount `~/.wolt` writable so a refreshed access token can be saved.
+
+```bash
+cp .env.example .env
+openssl rand -hex 32   # paste into WOLT_MCP_TOKEN
+docker compose up --build -d
+# or: make docker-compose
+```
+
+The MCP endpoint is `http://127.0.0.1:8080/mcp`:
+
+```json
+{
+  "mcpServers": {
+    "wolt": {
+      "url": "http://127.0.0.1:8080/mcp",
+      "headers": { "Authorization": "Bearer ${WOLT_MCP_TOKEN}" }
+    }
+  }
+}
+```
+
+Stdio instead of Compose:
+
+```json
+{
+  "mcpServers": {
+    "wolt": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "${HOME}/.wolt:/home/app/.wolt",
+        "wolt-mcp:local"
+      ]
+    }
+  }
+}
+```
+
+Build the image without Compose with `make docker` or
+`docker build --build-arg VERSION="$(git describe --tags --always --dirty)" -t wolt-mcp:local .`.
+The `wolt` CLI binary is in the image for debugging
+(`docker compose exec wolt-mcp wolt status`).
+
 ## Authentication
 
 `wolt-mcp` shares `~/.wolt/.wolt-config.json` (or `$WOLT_CONFIG_PATH`) with the
@@ -546,7 +600,8 @@ higher on slow networks:
 - Stdio transport by default (`mcp.StdioTransport`). `--listen` serves the
   SDK's Streamable HTTP handler (`mcp.NewStreamableHTTPHandler`) at `/mcp`;
   `--tls-cert`/`--tls-key` wrap the same handler with `ListenAndServeTLS`.
-  Legacy SSE is not implemented.
+  Unauthenticated `GET /healthz` is registered on the same mux, outside the
+  bearer wrapper. Legacy SSE is not implemented.
 - The server is in-process — `cmd/wolt-mcp/main.go` wires the shared gateway and
   service packages into MCP-specific typed handlers in `internal/mcpserver/`.
 - Source: [`cmd/wolt-mcp/`](https://github.com/mekedron/wolt-cli/tree/main/cmd/wolt-mcp) and [`internal/mcpserver/`](https://github.com/mekedron/wolt-cli/tree/main/internal/mcpserver).

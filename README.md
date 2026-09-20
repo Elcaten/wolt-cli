@@ -296,14 +296,16 @@ HTTP(S) instead:
 wolt-mcp --listen 127.0.0.1:8080
 ```
 
-Then point the client at `http://127.0.0.1:8080/mcp`. Full tool catalog,
-HTTP/TLS flags, and per-client setup: [`docs/mcp.md`](docs/mcp.md).
+Then point the client at `http://127.0.0.1:8080/mcp`. To run the same server in
+Docker, copy `.env.example` to `.env`, set `WOLT_MCP_TOKEN`, and
+`docker compose up --build -d` (or `make docker-compose`). Full tool catalog,
+HTTP/TLS flags, Docker, and per-client setup: [`docs/mcp.md`](docs/mcp.md).
 
 ## Documentation
 
 - [`docs/commands.md`](docs/commands.md) — full command reference with flags and behavior
 - [`docs/stats.md`](docs/stats.md) — local stats dashboard: sync model, flags, schema, privacy
-- [`docs/mcp.md`](docs/mcp.md) — MCP server: tool catalog, client setup, troubleshooting
+- [`docs/mcp.md`](docs/mcp.md) — MCP server: tool catalog, client setup, Docker, troubleshooting
 - [`docs/output-contract.md`](docs/output-contract.md) — JSON/YAML envelope and per-command schemas
 - [`docs/discovery-enrichment.md`](docs/discovery-enrichment.md) — design notes on `venue_preview_items`, `badges_v2`, and brand carousels
 - [`docs/roadmap.md`](docs/roadmap.md) — upcoming ergonomics

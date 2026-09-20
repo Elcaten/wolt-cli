@@ -1,13 +1,23 @@
-version: "3.9"
-
 services:
-  wolt-cli:
+  wolt-mcp:
     build:
       context: .
       dockerfile: Dockerfile
-    image: wolt-cli:local
-    command: ["--help"]
+      args:
+        VERSION: ${VERSION:-dev}
+    image: wolt-mcp:local
     environment:
-      WOLT_CLI_CONFIG_PATH: /data/config.json
+      WOLT_MCP_LISTEN: "0.0.0.0:8080"
+      WOLT_MCP_TOKEN: ${WOLT_MCP_TOKEN:?set WOLT_MCP_TOKEN}
+      WOLT_CONFIG_PATH: /home/app/.wolt/.wolt-config.json
+      WOLT_LOCALE: ${WOLT_LOCALE:-en-FI}
+    ports:
+      - "8080:8080"
     volumes:
-      - ./configs:/data
+      - ${WOLT_CONFIG_DIR:-${HOME}/.wolt}:/home/app/.wolt
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
