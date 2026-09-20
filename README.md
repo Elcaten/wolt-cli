@@ -298,8 +298,9 @@ wolt-mcp --listen 127.0.0.1:8080
 
 Then point the client at `http://127.0.0.1:8080/mcp`. To run the same server in
 Docker, copy `.env.example` to `.env`, set `WOLT_MCP_TOKEN`, and
-`docker compose up --build -d` (or `make docker-compose`). Full tool catalog,
-HTTP/TLS flags, Docker, and per-client setup: [`docs/mcp.md`](docs/mcp.md).
+`docker compose up --build -d` (or `make docker-compose`). Released images are
+`ghcr.io/mekedron/wolt-mcp`. Full tool catalog, HTTP/TLS flags, Docker, and
+per-client setup: [`docs/mcp.md`](docs/mcp.md).
 
 ## Documentation
 

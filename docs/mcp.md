@@ -188,6 +188,27 @@ Build the image without Compose with `make docker` or
 The `wolt` CLI binary is in the image for debugging
 (`docker compose exec wolt-mcp wolt status`).
 
+### GHCR
+
+CI publishes `linux/amd64` and `linux/arm64` to
+[`ghcr.io/mekedron/wolt-mcp`](https://github.com/mekedron/wolt-cli/pkgs/container/wolt-mcp):
+
+- `v*` tags → `ghcr.io/mekedron/wolt-mcp:vX.Y.Z` (and `:latest` for non-prereleases)
+- pushes to `main` → `:main` and `:sha-<commit>`
+
+```bash
+docker pull ghcr.io/mekedron/wolt-mcp:latest
+docker run --rm -i \
+  -e WOLT_MCP_LISTEN=0.0.0.0:8080 \
+  -e WOLT_MCP_TOKEN="$WOLT_MCP_TOKEN" \
+  -p 8080:8080 \
+  -v "${HOME}/.wolt:/home/app/.wolt" \
+  ghcr.io/mekedron/wolt-mcp:latest
+```
+
+GHCR packages start private. If a pull asks you to authenticate against a
+public repo, open the package settings and set visibility to public.
+
 ## Authentication
 
 `wolt-mcp` shares `~/.wolt/.wolt-config.json` (or `$WOLT_CONFIG_PATH`) with the
