@@ -41,8 +41,7 @@ Leaf commands share global flags unless noted:
 
 ## Login
 
-No MCP login tool. On HTTP MCP do not run these commands — ask the user to
-check and provide credentials. CLI / local stdio only:
+Host-side only (no MCP tools). Browser login does not run in Docker.
 
 - `wolt login`
 - `wolt login [--wtoken ...] [--wrtoken ...] [--cookie ...]`

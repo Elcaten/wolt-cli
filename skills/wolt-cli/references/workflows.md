@@ -1,30 +1,27 @@
 # Workflows
 
 Prefer MCP when `wolt_*` tools are available (match by suffix). CLI snippets
-are the fallback.
+are the fallback. Login is always host-side `wolt login`.
 
 ## 1) Authenticate and Validate Session
-
-**HTTP MCP:** do not run `wolt login`. Probe with `wolt_account_status`. If
-the call fails for missing or expired credentials, ask the user to check
-the mounted config and provide `wtoken` + `wrtoken` (or cookies). Retry
-after they confirm.
-
-**CLI / local stdio:**
 
 ```bash
 # Host-side. Browser-driven (managed Chrome at 127.0.0.1:9222).
 wolt login
 
-# Manual tokens (no browser).
+# Manual tokens (no browser) — also works when MCP runs in Docker.
 wolt login --wtoken "<token>" --wrtoken "<refresh-token>"
+```
 
+Then probe: MCP `wolt_account_status`, or CLI:
+
+```bash
 wolt status --format json --verbose
 wolt account --format json
 ```
 
-If an auth-gated CLI call fails (`WOLT_AUTH_REQUIRED`), ask the user to
-re-run `wolt login`, then retry. Never `docker exec` login.
+If an auth-gated call fails (`AUTH_*` / `WOLT_AUTH_REQUIRED`), tell the user
+to re-run `wolt login` on the host (not `docker exec`), then retry.
 
 ## 1a) Quickest "What Should I Eat?" Loop
 

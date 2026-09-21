@@ -39,9 +39,7 @@ No tool places an order.
 
 ## Gaps vs CLI (do not invent)
 
-- **Login / logout** — no MCP tools. On **HTTP MCP**, do not run
-  `wolt login`; ask the user to check and provide credentials. On CLI /
-  local stdio, host-side `wolt login` / `wolt logout`.
+- **Login / logout** — no MCP tools. Host-side `wolt login` / `wolt logout`.
 - **Stats dashboard** — `wolt stats` only.
 - **Address book writes** — CLI `account addresses add/update/remove/use` only.
   MCP `wolt_account_addresses` is read-only.
@@ -71,8 +69,7 @@ Errors: short message in `content`; stable shape in `_meta.wolt_error`:
 ```
 
 Auth failures use `AUTH_REQUIRED` / `AUTH_EXPIRED` / `SESSION_REFRESH_FAILED`.
-On HTTP MCP, ask the user to check and provide credentials; do not run
-`wolt login`. On CLI / local stdio, they may run `wolt login` on the host.
+Tell the user to run `wolt login` on the host (not in Docker), then retry.
 
 CLI envelope parsing (`meta` / `data` / `warnings` / `error`):
 `output-and-errors.md`.

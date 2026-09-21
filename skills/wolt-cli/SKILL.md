@@ -16,9 +16,7 @@ Docker is an operator deployment, not a third API. Do not curl `/mcp` or
 1. Scan available tools for names whose suffix is a canonical `wolt_*` tool
    (`wolt_feed`, `wolt_top`, `wolt_cart_add`, …). Hosts prefix them
    (Cursor: `mcp_<serverKey>_wolt_feed`). Match by suffix; ignore the server
-   key. If any match, **use MCP** for the rest of the session. If that server
-   is configured with a `url` (Streamable HTTP / Docker), you are on HTTP
-   transport — see Auth.
+   key. If any match, **use MCP** for the rest of the session.
 2. Else if the `wolt` binary is on PATH, use the CLI:
    ```bash
    wolt <group> <command> [flags] --format json
@@ -37,26 +35,16 @@ Canonical names, CLI equivalents, and MCP-only gaps:
   - MCP: `wolt_cart_add`, `wolt_cart_remove`, `wolt_cart_clear`,
     `wolt_favorites_add`, `wolt_favorites_remove`
   - CLI: `cart add/remove/clear`, `account favorites add/remove`,
-    `account addresses add/update/remove/use`, and `login` (CLI/stdio
-    only — never on HTTP MCP)
+    `account addresses add/update/remove/use`, `login`
 - Never describe checkout preview as order placement. Nothing here places
   a final order.
 
 ## Auth Workflow
 
-Treat HTTP MCP and local CLI/stdio differently. Never `docker exec` login.
-
-**HTTP MCP** (server configured with a `url`, including Docker Compose /
-`docker run` on `/mcp`): do **not** run `wolt login`, open a browser, or
-pass tokens into the container yourself. There is no login tool. If a call
-fails with `AUTH_REQUIRED`, `AUTH_EXPIRED`, `SESSION_REFRESH_FAILED`, or
-missing credentials, stop and ask the user to check the mounted
-`~/.wolt/.wolt-config.json` (or `WOLT_CONFIG_PATH`) and to provide
-credentials (`wtoken` + `wrtoken`, or `__wtoken` / `__wrtoken` cookies).
-Retry only after they confirm the session is in place.
-
-**CLI or local stdio MCP** (`wolt` / `wolt-mcp` as a local `command`): login
-is a host-side operator action. Confirm before running it.
+`wolt login` is always a **host-side** operator action (browser or manual
+tokens). It does not run inside the Docker image. MCP `AUTH_*` / CLI
+`WOLT_AUTH_REQUIRED` → tell the user to run `wolt login` on the host, then
+retry. Do not `docker exec` login.
 
 ```bash
 wolt login                                      # browser-driven (managed Chrome at 127.0.0.1:9222)
