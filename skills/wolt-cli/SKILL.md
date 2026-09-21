@@ -1,130 +1,141 @@
 ---
 name: wolt-cli
-description: Use Nikita's local Wolt CLI to browse venues, inspect menus/items/options, and run profile, cart, and checkout-preview actions for wolt.com from terminal. Trigger when asked to find food on Wolt, inspect venue catalogs, resolve item/option IDs, automate basket or profile tasks, or debug Wolt auth/location/output behavior.
+description: Browse Wolt venues, menus, items, and run profile, cart, and checkout-preview actions via the local `wolt` CLI or `wolt-mcp` tools (`wolt_feed`, `wolt_top`, `wolt_cart_add`, …), including dockerized Streamable HTTP. Trigger when asked to find food on Wolt, inspect venue catalogs, resolve item/option IDs, automate basket or profile tasks, or debug Wolt auth/location/output behavior.
 ---
 
-# Wolt CLI
+# Wolt CLI + MCP
 
-Tool repository: https://github.com/mekedron/wolt-cli
+Tool repository: https://github.com/Elcaten/wolt-cli
 
-Open the repository for setup/build details, then use the local `wolt` binary:
-
-```bash
-wolt <group> <command> [flags]
-```
+Stdio MCP and HTTP MCP (Compose / `docker run`) expose the **same** tools.
+Docker is an operator deployment, not a third API. Do not curl `/mcp` or
+`/healthz`. Do not hardcode `mcp_<server>_…` names or a hostname.
 
 ## Session Startup
 
-1. Inspect command tree once per session:
-```bash
-wolt --help
-```
-2. Prefer machine output for agent work:
-```bash
-... --format json
-```
-3. Parse `.data` from the envelope and surface `.warnings`/`.error` to the user.
+1. Scan available tools for names whose suffix is a canonical `wolt_*` tool
+   (`wolt_feed`, `wolt_top`, `wolt_cart_add`, …). Hosts prefix them
+   (Cursor: `mcp_<serverKey>_wolt_feed`). Match by suffix; ignore the server
+   key. If any match, **use MCP** for the rest of the session. If that server
+   is configured with a `url` (Streamable HTTP / Docker), you are on HTTP
+   transport — see Auth.
+2. Else if the `wolt` binary is on PATH, use the CLI:
+   ```bash
+   wolt <group> <command> [flags] --format json
+   ```
+   Parse `.data`; surface `.warnings` / `.error`.
+3. Else stop: neither transport is wired. Point the user at the repo README
+   (Path A = CLI, Path B = MCP stdio or Docker HTTP).
+
+Canonical names, CLI equivalents, and MCP-only gaps:
+`references/mcp-tools.md`.
 
 ## Safety Rules
 
 - Start read-only by default.
-- Request explicit confirmation before mutating commands:
-  - `cart add`, `cart remove`, `cart clear`
-  - `account favorites add`, `account favorites remove`
-  - `account addresses add`, `account addresses update`, `account addresses remove`, `account addresses use`
-  - `login` (opens browser or saves manual credentials)
-- Never describe `checkout preview` as order placement. The CLI does not place final orders.
+- Request explicit confirmation before mutating:
+  - MCP: `wolt_cart_add`, `wolt_cart_remove`, `wolt_cart_clear`,
+    `wolt_favorites_add`, `wolt_favorites_remove`
+  - CLI: `cart add/remove/clear`, `account favorites add/remove`,
+    `account addresses add/update/remove/use`, and `login` (CLI/stdio
+    only — never on HTTP MCP)
+- Never describe checkout preview as order placement. Nothing here places
+  a final order.
 
 ## Auth Workflow
 
-Use the single saved account:
+Treat HTTP MCP and local CLI/stdio differently. Never `docker exec` login.
+
+**HTTP MCP** (server configured with a `url`, including Docker Compose /
+`docker run` on `/mcp`): do **not** run `wolt login`, open a browser, or
+pass tokens into the container yourself. There is no login tool. If a call
+fails with `AUTH_REQUIRED`, `AUTH_EXPIRED`, `SESSION_REFRESH_FAILED`, or
+missing credentials, stop and ask the user to check the mounted
+`~/.wolt/.wolt-config.json` (or `WOLT_CONFIG_PATH`) and to provide
+credentials (`wtoken` + `wrtoken`, or `__wtoken` / `__wrtoken` cookies).
+Retry only after they confirm the session is in place.
+
+**CLI or local stdio MCP** (`wolt` / `wolt-mcp` as a local `command`): login
+is a host-side operator action. Confirm before running it.
 
 ```bash
 wolt login                                      # browser-driven (managed Chrome at 127.0.0.1:9222)
 wolt login --wtoken "<jwt>" --wrtoken "<rt>"    # manual tokens
-wolt status --format json --verbose
+wolt status --format json --verbose             # CLI probe; MCP: wolt_account_status
 ```
 
 `wolt login` (no flags) opens the Wolt login page in managed Chrome and polls
-the Chrome DevTools cookie store every ~1.5s. It returns only after the user
-has actually signed in (a real `__wtoken` cookie is set); telemetry cookies
-do not satisfy the polling guard. Default timeout is 2 minutes.
+the Chrome DevTools cookie store every ~1.5s until a real `__wtoken` cookie
+is set. Default timeout is 2 minutes.
 
 When refresh credentials are available, missing, expired, or rejected access
 tokens are refreshed automatically. The refreshed access token is saved only
-when the complete persisted credential snapshot is unchanged, so a concurrent
-explicit login or logout wins. Any refresh token returned by the rotation
-endpoint remains process-local; the saved bootstrap refresh token and cookies
-stay pinned.
+when the complete persisted credential snapshot is unchanged. Any refresh
+token returned by the rotation endpoint remains process-local; the saved
+bootstrap refresh token and cookies stay pinned.
 
 ## Location Rules
 
 Apply exactly:
 
-- Use either `--address "<text>"` or both `--lat` + `--lon`.
-- Do not combine `--address` with `--lat/--lon`.
+- MCP: pass `address` **or** both `lat` + `lon`. CLI: `--address` **or**
+  both `--lat` + `--lon`. Never combine address with coordinates.
 - If no override is passed, current account location is used.
-- `venues` and `venue` use `--address` or current account location (no direct `--lat/--lon` flags).
-- `venue hours` reads venue-local static data and does not require a location.
-- `venues`, `cart`, `checkout`, and `account favorites` support `--lat/--lon`.
+- CLI `venues` / `venue` use `--address` or account location (no direct
+  `--lat/--lon` on those commands). MCP venue tools accept `lat`/`lon` or
+  `address` per their schemas.
+- `venue hours` / `wolt_venue_hours` reads venue-local static data and does
+  not require a location.
+- CLI `venues`, `cart`, `checkout`, and `account favorites` support
+  `--lat/--lon`.
 
 ## Command Selection
 
-- "What should I eat right now?" — `top [N]` returns a single ranked
-  table flattened across all curated venue sections.
-- "What's on the home page?" — `feed --summary` prints one line per
-  section (`title · kind · count · top items`). Use full `feed` only
-  when you need per-section detail.
-- Discover with context (home-page style, grouped sections,
-  sub-3-second): `feed`. Sections classify as `kind: "venues"` or
-  `kind: "brands"`; brand carousels render as a single one-line summary.
-- Flat list / filtered search across all nearby venues: `venues`,
-  `venues categories` (paginated).
-- Product search across nearby venues: `items --query <text>`. Preserve its
-  global rank; expand a venue with `venue menu <venue> --query <text>` when the
-  user wants more from that store. Global completeness is unknown because Wolt
-  supplies neither a continuation token nor an exact total.
-- Inspect one venue deeply: `venue`, `venue categories` (paginated),
-  `venue menu`, `venue hours`.
-- Resolve one item/options for basket actions: `venue item`.
-- Basket and pricing: `cart count/add/remove/clear`, then `checkout`.
-- Account and history: `account`, `status`, `account
-  orders/payments/addresses/favorites` (favorites is paginated).
+Prefer MCP when present. Names below are canonical; call the host-prefixed
+form if that is what you have.
 
-Prefer `top` over manually parsing `feed` for "I'm hungry"-style
-queries. Prefer `feed --summary` when the user wants an overview rather
-than a long list. `venues` is the right tool when the user already has
-a search term or filter in mind. Each venue row in `feed`/`top`/`venues`
-carries `tagline`, `top_offer`, `badges` (icon-bearing badges from
-upstream `badges_v2`), and `menu_highlights` (flagship dishes from
-upstream `venue_preview_items`) — all sourced from the same upstream
-call.
+- "What should I eat right now?" — `wolt_top` / `wolt top [N]`
+- "What's on the home page?" — `wolt_feed` / `wolt feed --summary` for a
+  one-line-per-section overview. Full `wolt_feed` / `wolt feed` for
+  per-section detail.
+- Flat list / filtered search: `wolt_search_venues` / `wolt venues`,
+  `wolt_venue_categories` / `wolt venues categories`
+- Product search across nearby venues: `wolt_search_items` / `wolt items
+  --query <text>`. Preserve global rank; expand a venue with
+  `wolt_venue_search_items` / `venue menu <venue> --query <text>`.
+  Completeness is unknown (no continuation token or exact total).
+- Exact venue from a name, slug, ID, or URL: `wolt_resolve_venue` (MCP).
+  CLI: pass the slug/ID/URL straight to `wolt venue`.
+- Inspect one venue: `wolt_venue_detail`, `wolt_venue_menu`,
+  `wolt_venue_hours` / `wolt venue …`
+- Resolve one item: `wolt_venue_item` / `wolt venue item`
+- Basket and pricing: `wolt_cart_*` then `wolt_checkout_preview` /
+  `wolt cart …` then `wolt checkout`
+- Account and history: `wolt_account_*`, `wolt_favorites_*` /
+  `wolt account …`, `wolt status`
 
-For large marketplace venues, prefer:
+Prefer `wolt_top` / `wolt top` over parsing the full feed for "I'm hungry"
+queries. `wolt_search_venues` / `wolt venues` when the user already has a
+search term. Discovery rows carry `tagline`, `top_offer`, `badges`, and
+`menu_highlights`.
 
-- `venue menu <slug> --query "<text>"`
-- `venue menu <slug> --category <category-slug>`
+For large marketplace venues, prefer menu query or a category slug instead
+of an unrestricted full-catalog crawl.
 
-instead of unrestricted full-catalog menu crawl.
+`wolt stats` and option-aware `cart add --option` are CLI-only. See
+`references/mcp-tools.md` for gaps.
 
 ## Output and Diagnostics
 
-- `--format json|yaml` returns envelope keys: `meta`, `data`, `warnings`, optional `error`.
-- On upstream failures, rerun with `--verbose` to capture request trace and detailed diagnostics.
-
-## Driving Wolt via MCP
-
-If you're an AI agent running inside a host that speaks the Model Context
-Protocol (Claude Desktop, Claude Code, Cursor, …), prefer the `wolt-mcp`
-server tools (`wolt_feed`, `wolt_top`, `wolt_search_items`, `wolt_cart_show`,
-`wolt_cart_add`, `wolt_checkout_preview`, …) over shelling out to the CLI. They
-share the same auth state (`~/.wolt/.wolt-config.json`) and return typed, schema-described
-JSON instead of human-formatted tables. See `../../docs/mcp.md` for the full
-catalog and client setup.
+- MCP: read `structuredContent`; on errors read `_meta.wolt_error` (and the
+  short `content` message). Do not invent CLI envelope fields.
+- CLI: `--format json|yaml` envelope keys `meta`, `data`, `warnings`,
+  optional `error`. On upstream failures, rerun with `--verbose`.
 
 ## References
 
-- Full command and flag matrix: `references/command-reference.md`
+- Canonical MCP names, CLI map, host-prefix rule: `references/mcp-tools.md`
+- Full CLI command and flag matrix: `references/command-reference.md`
 - Reusable high-confidence workflows: `references/workflows.md`
-- Envelope/error parsing and automation notes: `references/output-and-errors.md`
-- MCP server tool catalog and setup: `../../docs/mcp.md`
+- Envelope/error parsing: `references/output-and-errors.md`
+- Operator setup (CLI, stdio MCP, Docker HTTP): repo `README.md` and `docs/mcp.md`

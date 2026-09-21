@@ -38,6 +38,12 @@ wolt-mcp --version
 
 The same one-line config works in every client that speaks MCP over stdio.
 
+Protocol tool names are `wolt_*` (`wolt_feed`, `wolt_top`, …). Hosts often
+prefix them with the client server key — Cursor, for example, exposes
+`mcp_wolt_wolt_feed` when the key is `wolt`. That is expected. Agents should
+match tools by the `wolt_*` suffix, not by hostname or server key. Use `wolt`
+as the client key so the prefix stays predictable for humans.
+
 ### Claude Desktop
 
 Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)

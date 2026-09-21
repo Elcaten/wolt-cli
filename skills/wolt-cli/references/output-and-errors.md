@@ -1,5 +1,8 @@
 # Output and Errors
 
+MCP results use `structuredContent` and `_meta.wolt_error`, not this
+envelope. See [`mcp-tools.md`](mcp-tools.md).
+
 ## Machine-Readable Envelope
 
 Use `--format json` for automation. Every response follows:

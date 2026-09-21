@@ -5,6 +5,8 @@
 `wolt-cli` is an unofficial community Go CLI for interacting with Wolt endpoints from a terminal.
 It is not affiliated with Wolt. Use it at your own responsibility.
 
+Repository: https://github.com/Elcaten/wolt-cli
+
 <p align="center">
   <a href="#local-stats-dashboard">
     <img src="docs-site/static/img/stats/dashboard-overview.png" alt="wolt stats — local order-history dashboard" width="900" />
@@ -15,59 +17,37 @@ It is not affiliated with Wolt. Use it at your own responsibility.
 
 ## What It Covers
 
-- discovery feed grouped by section (`wolt feed`), with `--summary` for a one-line-per-section overview
-- top-N flattened picks across the feed (`wolt top`) — the "what should I eat right now" shortcut
-- venue browsing, filtering, sorting, and category listing (`wolt venues`)
-- globally ranked item search across nearby venues (`wolt items`)
+- discovery feed grouped by section (`wolt feed` / `wolt_feed`), with `--summary` for a one-line-per-section overview
+- top-N flattened picks across the feed (`wolt top` / `wolt_top`) — the "what should I eat right now" shortcut
+- venue browsing, filtering, sorting, and category listing (`wolt venues` / `wolt_search_venues`)
+- globally ranked item search across nearby venues (`wolt items` / `wolt_search_items`)
 - venue details, menus (with `--query` / `--category`), hours, and item drilldown
-- option matrix inspection and option resolution by name (`--option "Drink=Cola"`)
-- cart commands (`cart`, `cart count`, `cart add`, `cart remove`, `cart clear`)
-- checkout projection (`checkout`, no order placement)
+- option matrix inspection and option resolution by name (`--option "Drink=Cola"`) on the CLI
+- cart commands (`cart`, `cart count`, `cart add`, `cart remove`, `cart clear` / `wolt_cart_*`)
+- checkout projection (`checkout` / `wolt_checkout_preview`, no order placement)
 - single-account commands (`login`, `logout`, `status`, `account`)
-- local stats dashboard (`wolt stats`) — fetches a pre-built bundle, syncs your order history into SQLite, serves the dashboard at `http://127.0.0.1:5173`, and opens the browser. No Node.js required at runtime.
+- local stats dashboard (`wolt stats`) — fetches a pre-built bundle, syncs your order history into SQLite, serves the dashboard at `http://127.0.0.1:5173`, and opens the browser. No Node.js required at runtime. CLI-only.
 - discovery enrichments: `menu_highlights[]` from `venue_preview_items`, badge glyphs in the venue cell from `badges_v2`, brand carousels ("Popular stores", "Restaurant categories") as one-line summaries
 - token rotation using the refresh token (`--wrtoken`)
 
-## Requirements
+## Two ways to use it
 
-- Go `1.26+`
+Same Wolt session (`~/.wolt/.wolt-config.json`). Pick one:
 
-## Development Setup
+| | Path A — Terminal CLI | Path B — MCP for AI clients |
+|---|---|---|
+| Binary | `wolt` | `wolt-mcp` |
+| How you talk to it | `wolt <group> <command> [flags]` | Tools named `wolt_*` (hosts may prefix them) |
+| Local | Homebrew / `go build` | stdio: `"command": "wolt-mcp"` |
+| Docker | `docker compose exec wolt-mcp wolt …` (debug) | Streamable HTTP at `/mcp`, or `docker run -i` for stdio |
 
-**Required for all contributors.** Right after `git clone`, install the
-repo-tracked git hooks so commits and pushes are gated by the same checks
-the remote CI runs. Without this step, pushes tend to fail CI on the
-"trivial" gates (gofmt drift, missing lint fixes, race-detector regressions).
+Log in on the host first (`wolt login`). Browser login does not run inside the container.
 
-```bash
-make install-hooks
-# or, equivalently:
-./scripts/install-git-hooks.sh
-```
+## Path A — CLI (stdio)
 
-The installer wires `git config core.hooksPath -> scripts/git-hooks/`, so
-the hooks live in-tree (`scripts/git-hooks/`) and update automatically with
-every `git pull`. It is idempotent — safe to re-run.
+Requires Go `1.26+` only if you build from source.
 
-What the hooks do:
-
-- **`pre-commit`** (fast) — runs `gofmt -l` on staged Go files and
-  `go vet ./...`. Blocks commits with formatting drift or vet errors.
-- **`pre-push`** (full CI parity, only when pushing `main` or a `v*` tag) —
-  runs `go mod download`, `go build ./...`, the versioned `wolt --version`
-  round-trip, `golangci-lint run`, `go test ./...`, and `go test -race ./...`.
-  Mirrors `.github/workflows/go-ci.yml` exactly.
-
-If `golangci-lint` is missing the installer prints a hint; you'll also need:
-
-```bash
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
-```
-
-Emergency bypass (avoid unless something is on fire): `git commit --no-verify`,
-`git push --no-verify`.
-
-## Recommended Install (Homebrew Tap)
+### Recommended Install (Homebrew Tap)
 
 Use the dedicated tap at [mekedron/tap](https://github.com/mekedron/tap):
 
@@ -82,7 +62,9 @@ Or as a one-liner without adding the tap first:
 brew install mekedron/tap/wolt-cli
 ```
 
-## Build and Run
+This installs both `wolt` and `wolt-mcp`.
+
+### Build and Run
 
 ```bash
 go build ./...
@@ -96,7 +78,7 @@ Or without installing:
 go run ./cmd/wolt --help
 ```
 
-## First Command to Run
+### First Command to Run
 
 Log in first:
 
@@ -116,17 +98,19 @@ Cookie auth is also supported:
 wolt login --cookie "__wtoken=<token>" --cookie "__wrtoken=<refresh-token>"
 ```
 
-## Config Location
+### Config Location
 
 Configuration is loaded from:
+
 - `WOLT_CONFIG_PATH` (if set)
 - otherwise `~/.wolt/.wolt-config.json`
 
 Example config: `configs/example.config.json`
 
-## Common Flags
+### Common Flags
 
 Global flags for all leaf commands:
+
 - `--format [table|json|yaml]`
 - `--address <text>` (temporary location override; geocoded to coordinates)
 - `--locale <bcp47>`
@@ -134,15 +118,17 @@ Global flags for all leaf commands:
 - `--verbose` (prints upstream HTTP request trace and detailed error diagnostics)
 
 Shared location override flags for location-aware commands:
+
 - `--lat <float>`
 - `--lon <float>`
 
 Rules:
+
 - `--lat` and `--lon` must be provided together
 - `--address` cannot be combined with `--lat/--lon`
 - location overrides are preview inputs only; final order placement in Wolt uses the delivery address selected in your Wolt account
 
-## Quick Tour
+### Quick Tour
 
 The fastest path from "I'm hungry" to a planned cart:
 
@@ -164,7 +150,7 @@ wolt cart add noodle-story-kamppi --query "Teriyaki Udon"
 wolt checkout
 ```
 
-## Example: Find a Venue, Inspect Options, Build a Cart
+### Example: Find a Venue, Inspect Options, Build a Cart
 
 ```bash
 # 0) Validate account (friendly hint when the session expires)
@@ -211,7 +197,7 @@ wolt checkout --delivery-mode standard --venue-id <venue-id>
 wolt cart clear --venue-id <venue-id>
 ```
 
-## Other Common Flows
+### Other Common Flows
 
 ```bash
 wolt account addresses
@@ -221,6 +207,134 @@ wolt account payments
 wolt account favorites --limit 20
 ```
 
+### Rendering Notes
+
+- Tables are column-aligned via the standard library's `tabwriter`. The
+  `Highlights` column auto-renders when at least one row has data (force
+  with `--show-highlights`, hide with `--show-highlights=false`).
+- Badge glyphs are prefixed to the venue cell (`+ Wolt+`, `% 20% off`,
+  `⚡ Fast`). If your terminal renders them as boxes, set
+  `WOLT_BADGES_PLAIN=1` for a bracketed-text fallback (`[Wolt+]`).
+- Brand carousels ("Popular stores", "Restaurant categories", …) appear
+  in `wolt feed` as a single-line summary; `wolt feed --query <text>`
+  matches against brand names as well as venues.
+
+## Path B — MCP for AI clients
+
+`wolt-mcp` exposes the same discovery, account, cart, and checkout-preview
+flows over the [Model Context Protocol](https://modelcontextprotocol.io).
+Stdio and Streamable HTTP serve the **same** tool catalog. Protocol names are
+`wolt_feed`, `wolt_top`, `wolt_cart_add`, … — MCP hosts often prefix them
+(`mcp_wolt_wolt_feed` if the client key is `wolt`). That prefix is expected;
+agents should match tools by the `wolt_*` suffix, not by hostname or server
+key. A client key of `wolt` is the recommended convention.
+
+Full tool catalog, TLS flags, and per-client setup: [`docs/mcp.md`](docs/mcp.md).
+
+Auth is shared with the CLI — log in once via `wolt login` and `wolt-mcp`
+inherits the same session.
+
+### Local stdio (desktop hosts)
+
+```json
+{
+  "mcpServers": {
+    "wolt": { "command": "wolt-mcp" }
+  }
+}
+```
+
+To serve Streamable HTTP on the host instead of stdio:
+
+```bash
+wolt-mcp --listen 127.0.0.1:8080
+```
+
+Then point the client at `http://127.0.0.1:8080/mcp`. Binding a non-loopback
+address (`0.0.0.0:8080`) requires a bearer token (`--token` / `WOLT_MCP_TOKEN`).
+
+### Docker
+
+The image entrypoint is `wolt-mcp`. Compose serves Streamable HTTP on
+`0.0.0.0:8080` (a bearer token is required). With no listen address,
+`docker run -i` speaks stdio.
+
+Log in on the host first (`wolt login`). Browser login does not run inside
+the container. Mount `~/.wolt` writable so a refreshed access token can be
+saved.
+
+#### Docker Compose
+
+```bash
+cp .env.example .env
+openssl rand -hex 32          # paste into WOLT_MCP_TOKEN in .env
+docker compose up --build -d  # or: make docker-compose
+```
+
+`.env` must set `WOLT_MCP_TOKEN`. Optional: `WOLT_LOCALE`, `WOLT_CONFIG_DIR`
+(defaults to `~/.wolt`).
+
+```bash
+curl -fsS http://127.0.0.1:8080/healthz
+docker compose logs -f wolt-mcp
+docker compose exec wolt-mcp wolt status
+docker compose down
+```
+
+Point an MCP client at `http://127.0.0.1:8080/mcp`:
+
+```json
+{
+  "mcpServers": {
+    "wolt": {
+      "url": "http://127.0.0.1:8080/mcp",
+      "headers": { "Authorization": "Bearer ${WOLT_MCP_TOKEN}" }
+    }
+  }
+}
+```
+
+#### docker build and docker run
+
+```bash
+make docker
+# or:
+docker build --build-arg VERSION="$(git describe --tags --always --dirty)" -t wolt-mcp:local .
+```
+
+HTTP (same flags Compose uses):
+
+```bash
+export WOLT_MCP_TOKEN="$(openssl rand -hex 32)"
+docker run --rm \
+  -e WOLT_MCP_LISTEN=0.0.0.0:8080 \
+  -e WOLT_MCP_TOKEN \
+  -p 8080:8080 \
+  -v "${HOME}/.wolt:/home/app/.wolt" \
+  wolt-mcp:local
+```
+
+Stdio for desktop MCP hosts:
+
+```json
+{
+  "mcpServers": {
+    "wolt": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "${HOME}/.wolt:/home/app/.wolt",
+        "wolt-mcp:local"
+      ]
+    }
+  }
+}
+```
+
+CI publishes `linux/amd64` and `linux/arm64` to GHCR as
+`ghcr.io/elcaten/wolt-mcp` (`:latest` / `:vX.Y.Z` on tags, `:main` on
+`main`). More detail: [`docs/mcp.md`](docs/mcp.md#docker).
+
 ## Local Stats Dashboard
 
 `wolt stats` is the one-line shortcut for exploring your order history in a
@@ -229,7 +343,7 @@ visual dashboard. It downloads a pre-built bundle of
 syncs your orders into a local SQLite file, starts a small embedded HTTP
 server, and opens your browser. There is no Node.js install step — the
 dashboard is shipped as a static HTML/JS/WASM bundle, and the sync runs
-inside `wolt-cli` itself.
+inside `wolt-cli` itself. There is no MCP tool for this flow.
 
 ```bash
 # All-in-one. First run downloads the bundle (~1.5 MB) and the full order
@@ -260,47 +374,40 @@ and incremental mode picks up exactly where a previous run stopped.
 
 Full reference (sync model, flags, schema, privacy): [`docs/stats.md`](docs/stats.md).
 
-## Rendering Notes
+## Development Setup
 
-- Tables are column-aligned via the standard library's `tabwriter`. The
-  `Highlights` column auto-renders when at least one row has data (force
-  with `--show-highlights`, hide with `--show-highlights=false`).
-- Badge glyphs are prefixed to the venue cell (`+ Wolt+`, `% 20% off`,
-  `⚡ Fast`). If your terminal renders them as boxes, set
-  `WOLT_BADGES_PLAIN=1` for a bracketed-text fallback (`[Wolt+]`).
-- Brand carousels ("Popular stores", "Restaurant categories", …) appear
-  in `wolt feed` as a single-line summary; `wolt feed --query <text>`
-  matches against brand names as well as venues.
-
-## MCP server for AI clients
-
-`wolt-cli` ships a second binary, `wolt-mcp`, that exposes every read-only
-discovery and account flow (plus cart and checkout-preview) over the
-[Model Context Protocol](https://modelcontextprotocol.io). Wire it into
-Claude Desktop, Claude Code, Cursor, or any other MCP host and the AI gets a
-typed, schema-described tool surface for Wolt instead of having to shell out.
-
-```json
-{
-  "mcpServers": {
-    "wolt": { "command": "wolt-mcp" }
-  }
-}
-```
-
-Auth is shared with the CLI — log in once via `wolt login` and `wolt-mcp`
-inherits the same session. Default transport is stdio. To serve Streamable
-HTTP(S) instead:
+**Required for all contributors.** Right after `git clone`, install the
+repo-tracked git hooks so commits and pushes are gated by the same checks
+the remote CI runs. Without this step, pushes tend to fail CI on the
+"trivial" gates (gofmt drift, missing lint fixes, race-detector regressions).
 
 ```bash
-wolt-mcp --listen 127.0.0.1:8080
+make install-hooks
+# or, equivalently:
+./scripts/install-git-hooks.sh
 ```
 
-Then point the client at `http://127.0.0.1:8080/mcp`. To run the same server in
-Docker, copy `.env.example` to `.env`, set `WOLT_MCP_TOKEN`, and
-`docker compose up --build -d` (or `make docker-compose`). Released images are
-`ghcr.io/mekedron/wolt-mcp`. Full tool catalog, HTTP/TLS flags, Docker, and
-per-client setup: [`docs/mcp.md`](docs/mcp.md).
+The installer wires `git config core.hooksPath -> scripts/git-hooks/`, so
+the hooks live in-tree (`scripts/git-hooks/`) and update automatically with
+every `git pull`. It is idempotent — safe to re-run.
+
+What the hooks do:
+
+- **`pre-commit`** (fast) — runs `gofmt -l` on staged Go files and
+  `go vet ./...`. Blocks commits with formatting drift or vet errors.
+- **`pre-push`** (full CI parity, only when pushing `main` or a `v*` tag) —
+  runs `go mod download`, `go build ./...`, the versioned `wolt --version`
+  round-trip, `golangci-lint run`, `go test ./...`, and `go test -race ./...`.
+  Mirrors `.github/workflows/go-ci.yml` exactly.
+
+If `golangci-lint` is missing the installer prints a hint; you'll also need:
+
+```bash
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
+```
+
+Emergency bypass (avoid unless something is on fire): `git commit --no-verify`,
+`git push --no-verify`.
 
 ## Documentation
 
@@ -310,6 +417,7 @@ per-client setup: [`docs/mcp.md`](docs/mcp.md).
 - [`docs/output-contract.md`](docs/output-contract.md) — JSON/YAML envelope and per-command schemas
 - [`docs/discovery-enrichment.md`](docs/discovery-enrichment.md) — design notes on `venue_preview_items`, `badges_v2`, and brand carousels
 - [`docs/roadmap.md`](docs/roadmap.md) — upcoming ergonomics
+- [`skills/wolt-cli/`](skills/wolt-cli/) — agent skill: transport-agnostic CLI + MCP usage
 
 ## Test and Lint
 

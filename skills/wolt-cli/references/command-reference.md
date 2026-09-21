@@ -2,26 +2,18 @@
 
 ## Invocation
 
-Tool repository: https://github.com/mekedron/wolt-cli
+Tool repository: https://github.com/Elcaten/wolt-cli
 
-Open the repository for setup/build details, then use the local binary:
+CLI fallback (only when no `wolt_*` MCP tools are available):
 
 ```bash
-wolt <group> <command> [flags]
+wolt <group> <command> [flags] --format json
 ```
 
-> If you are an agent running inside an MCP host (Claude Desktop, Claude
-> Code, Cursor, …), prefer the typed tools served by the bundled `wolt-mcp`
-> binary over shelling to the CLI. It shares the saved auth state, Wolt gateway,
-> and service packages, with MCP-specific typed handlers instead of CLI
-> envelopes or tables.
-> Tool surface: `wolt_feed`, `wolt_top`,
-> `wolt_search_venues`, `wolt_search_items`, `wolt_venue_categories`,
-> `wolt_resolve_address`,
-> `wolt_resolve_venue`, `wolt_venue_detail`, `wolt_venue_menu`, `wolt_venue_hours`,
-> `wolt_venue_item`, `wolt_venue_search_items`, `wolt_account_*`,
-> `wolt_favorites_*`, `wolt_cart_*`, `wolt_checkout_preview`. Full catalog
-> and per-client wiring in [`docs/mcp.md`](../../../docs/mcp.md).
+MCP (stdio or Docker HTTP) is preferred when present. Canonical names are
+`wolt_feed`, `wolt_top`, `wolt_search_venues`, … — hosts prefix them; match
+by suffix. Map and gaps: [`mcp-tools.md`](mcp-tools.md). Operator wiring:
+[`docs/mcp.md`](../../../docs/mcp.md).
 
 Leaf commands share global flags unless noted:
 
@@ -49,6 +41,9 @@ Leaf commands share global flags unless noted:
 
 ## Login
 
+No MCP login tool. On HTTP MCP do not run these commands — ask the user to
+check and provide credentials. CLI / local stdio only:
+
 - `wolt login`
 - `wolt login [--wtoken ...] [--wrtoken ...] [--cookie ...]`
 - `wolt logout`
@@ -56,17 +51,23 @@ Leaf commands share global flags unless noted:
 
 ## Feed
 
+MCP: `wolt_feed`. CLI:
+
 - `wolt feed [--section-limit <n>] [--per-section <n>] [--query <text>] [--summary] [--show-highlights[=bool]] [--address ... | --lat ... --lon ...]`
 
 Mirrors the wolt.com home page: section-grouped venues with tagline + top discount offer per row. One upstream call, sub-3-second. Sections carry a `kind: "venues" | "brands"` discriminant — brand carousels (Popular stores, Restaurant categories, …) render as a single-line summary. Use `--summary` to collapse the whole feed into one line per section. `--show-highlights` defaults to auto (render iff at least one row has `menu_highlights[]`). `--query` matches against brand names too.
 
 ## Top
 
+MCP: `wolt_top`. CLI:
+
 - `wolt top [N] [--limit <n>] [--offset <n> | --page <n>] [--query <text>] [--wolt-plus] [--show-highlights[=bool]] [--address ... | --lat ... --lon ...]`
 
 Flattens every `kind=venues` section of the discovery feed into a single ranked table, dedupes by `venue_id` preserving upstream order, and trims to N (default 10). The "what should I order right now" shortcut. Same row shape as `wolt venues`.
 
 ## Venues
+
+MCP: `wolt_search_venues`, `wolt_venue_categories`, `wolt_search_items`. CLI:
 
 - `wolt venues [--query <text>] [--sort ...] [--type ...] [--category ...] [--open-now] [--wolt-plus] [--promotions-only] [--min-rating <float>] [--max-delivery-fee <minor>] [--enrich] [--show-highlights[=bool]] [--limit <n>] [--offset <n> | --page <n>] [--address ... | --lat ... --lon ...]`
 
@@ -89,6 +90,9 @@ tool `wolt_venue_search_items`.
 
 ## Venue
 
+MCP: `wolt_resolve_venue`, `wolt_venue_detail`, `wolt_venue_menu`,
+`wolt_venue_search_items`, `wolt_venue_hours`, `wolt_venue_item`.
+
 `<venue>` accepts slug, 24-char Mongo ObjectID, or a Wolt URL.
 
 - `wolt venue <venue> [--include hours,tags,rating,fees] [--address ...]`
@@ -100,6 +104,9 @@ tool `wolt_venue_search_items`.
 `venue menu` without `--query` returns the full menu; with `--query` it returns a venue-scoped item search (preferred for large marketplace catalogs). Partial grocery roots expose category metadata instead of pretending an empty menu is complete; select a leaf category or use item search. Search in the language selected in the user's Wolt profile. Wolt's search, menu, and item endpoints can return different upstream-provided languages; the client never invents missing translations. `venue item` includes option metadata so option group/value names can be passed straight to `cart add --option`. Unit, weight-step, and `purchasable_balance` semantics are documented in [`output-contract.md`](../../../docs/output-contract.md).
 
 ## Cart
+
+MCP: `wolt_cart_show`, `wolt_cart_count`, `wolt_cart_add`, `wolt_cart_remove`,
+`wolt_cart_clear`. `wolt_cart_add` does not accept option selections.
 
 - `wolt cart count`
 - `wolt cart [--venue-id <id>] [--details] [--address ... | --lat ... --lon ...]`
@@ -113,6 +120,8 @@ tool `wolt_venue_search_items`.
 
 ## Checkout
 
+MCP: `wolt_checkout_preview`. CLI:
+
 - `wolt checkout [--delivery-mode standard|priority] [--tip <minor-units>] [--promo-code <id>] [--venue-id <id>] [--address ... | --lat ... --lon ...]`
 
 Preview only. No final order placement. Priority sets the Wolt purchase-plan
@@ -125,6 +134,8 @@ availability, not a checkout delivery mode supported by the current endpoint.
 
 ## Stats
 
+CLI-only (no MCP tool):
+
 - `wolt stats [--resync] [--no-sync] [--no-open] [--port <n>] [--bundle-version <tag>] [--no-check-updates] [--stats-dir <path>]`
 
 Downloads or reuses the `wolt-stats` dashboard bundle, optionally syncs order
@@ -133,6 +144,11 @@ See [`docs/stats.md`](../../../docs/stats.md) for the sync, storage, privacy,
 and lifecycle contracts.
 
 ## Account
+
+MCP: `wolt_account_status`, `wolt_account_orders`, `wolt_account_order`,
+`wolt_account_addresses` (read), `wolt_account_payments`, `wolt_favorites_*`.
+Address writes (`add`/`update`/`remove`/`use`) are CLI-only. Login/logout
+have no MCP tools.
 
 - `wolt account [--include personal,settings]`
 - `wolt account orders [--limit 1-50] [--page-token <token>] [--status <value>]`
